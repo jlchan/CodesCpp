@@ -62,6 +62,8 @@ public:
   // column major serial access - 1-indexed
   T & operator[] (int r) ;
 
+  T operator() (int r) const ;
+
   T operator() (int r, int c) const ;
 
   T & operator() (int r, int c) ;
@@ -84,9 +86,9 @@ public:
 
   void eig(matrix <T> &WR, matrix <T> &WI, matrix <T> &VL, matrix <T> &VR);
 
-  int byteCount();
+  int byteCount() const;
 
-  int entryCount();
+  int entryCount() const;
 
   int size();
 

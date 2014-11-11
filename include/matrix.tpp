@@ -272,6 +272,20 @@ T & matrix<T>::operator() (int r) {
   return data[ r-1 ];
 }
 
+template<class T>
+T matrix<T>::operator() (int r) const{
+  assert(r>0);
+  assert(r<=Nrows*Ncolumns);
+  // bounds check here [ could also throw an exception ]
+  if(r<=0 || r>Nrows*Ncolumns){
+    std::cout << "matrix::operator() Out of bounds access" << std::endl;
+    trace(std::cout, 20);
+    //      exit(-1);
+  }
+
+  return data[ r-1 ];
+}
+
   // permute
 template<class T> matrix <T>
 matrix<T>::operator[] (const matrix <int> &ind)  {
@@ -343,14 +357,14 @@ void matrix<T>::sort( int (*compare)(const void *, const void *) ){
 // }
 
 template<class T>
-int matrix<T>::byteCount(){
+int matrix<T>::byteCount() const{
 
   return sizeof(T)*Nrows*Ncolumns;
 
 }
 
 template<class T>
-int matrix<T>::entryCount(){
+int matrix<T>::entryCount() const{
 
   return Nrows*Ncolumns;
 

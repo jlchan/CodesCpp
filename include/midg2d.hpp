@@ -5,10 +5,9 @@
 #include <ostream>
 #include <fstream>
 
-//#include "headers2d.hpp"
-//#define DEBUG_MIDG
 /// High order elemental node coordinates and operators
 
+#include "midg1d.hpp"
 #include "mesh2d.hpp"
 
 class midg2d;
@@ -19,23 +18,11 @@ public:
   /// Number of elements in total mesh
   int K;
 
-  int padding_factor;
-
-  int thread_padding_factor;
-
   // Number of nodes on an edge, face, element
-  int N,Nq,Nfp,Np,Npad;
+  int N,Nq,Nfp,Np;
 
   /// Number of cubature nodes in an element
-  int Ncub, NcubPad;
-
-  /// Number of Gauss integration nodes on a face
-  int Ngauss, Ngauss_Nfaces, Ngauss_NfacesPad;
-
-  /// Number of triangles for plotting
-  int Nptris, Npp;
-  imatrix ptris;
-  fmatrix pr, ps, pinterp, px, py;
+  int Ncub, Ngauss, Ngauss_Nfaces;
 
   /// Nodal (W&B) derivative matrices
   fmatrix Dr, Ds;
@@ -70,34 +57,14 @@ public:
   /// Element local coordinates of Gauss nodes
   fmatrix gr,gs,gw;
 
-  /// interpolation matrices for positivity preservation
-  fmatrix checkinterp, V1, gV1, P1, P0;
-
   ///
   fmatrix V, Vinv;
-
-  fmatrix V1Nodal, P1Nodal, gV1Nodal;
 
   /// Geometric factors
   fmatrix rx, sx, ry,sy, J;
 
   /// Surface geometry info
   fmatrix nx, ny, sJ, Fscale;
-
-  /// Number of levels in mrab
-  int Nlevels;
-
-  /// level information
-  imatrix levflag;
-
-  /// list of list of elements at each level
-  matrix < imatrix > ks;
-
-  /// list of coarse neighbors at each level
-  matrix < imatrix > kcoarse;
-
-  /// list of ?
-  matrix < imatrix > kids;
 
   // Constructor: calls base class to load mesh in
   midg2d(setupAide &setup);
@@ -118,29 +85,48 @@ public:
    */
   void geometry();
 
-  //  datafloat factorial(int n);
-
-  datafloat JacobiP(datafloat xout, datafloat alpha, datafloat beta, int p);
-
-  datafloat GradJacobiP(datafloat xout, datafloat alpha, datafloat beta,  int p);
-
-  datafloat SimplexP(datafloat aout, datafloat bout, int i, int j);
-
-  void GradSimplexP(datafloat aout, datafloat bout,
-		    int id, int jd,
-		    datafloat &dmodedr, datafloat &dmodeds);
-
-  void rstoab(fmatrix &r, fmatrix &s, fmatrix &a, fmatrix &b);
-
-  void Vandermonde(int p, fmatrix &rout, fmatrix &sout, fmatrix &Vout);
-
-  void GradVandermonde(int p, fmatrix &rout, fmatrix &sout,
-		       fmatrix &Vrout, fmatrix &Vsout);
-
-  void basis(int p, fmatrix &rout, fmatrix &sout, fmatrix &Vout,
-	     fmatrix &Vrout, fmatrix &Vsout);
-
-  datafloat build_levels(fmatrix &all_dt, int maxNlevels);
 };
+
+//  datafloat factorial(int n);
+
+datafloat Warpfactor(const int p, fmatrix &rout);
+
+void Nodes2D(const int p, fmatrix &x, fmatrix &y);
+
+void xytors(const fmatrix &x, const fmatrix &y,
+	    fmatrix &r, fmatrix &s);
+
+datafloat Simplex2DP(datafloat aout, datafloat bout,
+		     int i, int j);
+
+void GradSimplex2DP(datafloat aout, datafloat bout,
+		    int id, int jd,
+		    datafloat &dmodedr,
+		    datafloat &dmodeds);
+
+void rstoab(const fmatrix &r, const fmatrix &s,
+	    fmatrix &a, fmatrix &b);
+
+void Vandermonde2D(int p, fmatrix &rout,
+		   fmatrix &sout,
+		   fmatrix &Vout);
+
+void GradVandermonde2D(int p, fmatrix &rout,
+		       fmatrix &sout,
+		       fmatrix &Vrout,
+		       fmatrix &Vsout);
+
+void basis2D(int p, fmatrix &rout, fmatrix &sout,
+	     fmatrix &Vout, fmatrix &Vrout,
+	     fmatrix &Vsout);
+
+void Dmatrices2D(const int p, const fmatrix &r,
+		 const fmatrix &s,
+		 const fmatrix &V,
+		 fmatrix &Dr,
+		 fmatrix &Ds);
+
+void Lift2D(fmatrix &Lift);
+
 
 #endif

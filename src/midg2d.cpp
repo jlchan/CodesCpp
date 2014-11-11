@@ -9,10 +9,10 @@
 #include <math.h>
 #include <assert.h>
 #include "midg2d.hpp"
-//#define DEBUG_MIDG
+
 /// High order elemental node coordinates and operators
 
-  // Constructor: calls base class to load mesh in
+// Constructor: calls base class to load mesh in
 midg2d::midg2d(setupAide &setup) : mesh2d(setup){
 
   /// number of nodes on each edge, face, element
@@ -21,14 +21,6 @@ midg2d::midg2d(setupAide &setup) : mesh2d(setup){
   Nq  = N+1;
   Nfp = (N+1);
   Np  = (N+1)*(N+2)/2;
-  //  Npad = Np;
-
-  if(!setup.getArgs("PADDING FACTOR", padding_factor)) throw -1;
-
-  Npad = padding_factor*((Np + padding_factor -1)/padding_factor);
-
-  thread_padding_factor = 1;
-  setup.getArgs("THREAD PADDING FACTOR", thread_padding_factor);
 
   K = EToV.nrows();
 
@@ -72,35 +64,12 @@ void midg2d::initNodes(int inN, int inC, int inG, int inP){
   /// Build coordinates
   Ncub   = ref_Ncub[inC];
   Ngauss = ref_Ngauss[inG];
-  Nptris = ref_Nptris[inP];
-  Npp    = ref_Npp[inP];
 
-  Ngauss_Nfaces = Ngauss*Nfaces;
-
-  Ngauss_NfacesPad = thread_padding_factor*((Ngauss_Nfaces+thread_padding_factor-1)/thread_padding_factor);
-
-  //  NcubPad = Ncub;
-  NcubPad = thread_padding_factor*((Ncub+thread_padding_factor-1)/thread_padding_factor);
-
-  int maxThreads = NcubPad;
-
-  if(maxThreads < Npad) maxThreads = Npad;
-  if(maxThreads < Ngauss_NfacesPad) maxThreads = Ngauss_NfacesPad;
-
-  Npad = maxThreads;
-  NcubPad = maxThreads;
-
-  //  Ngauss_NfacesPad = Ngauss*Nfaces;
-
-  Ngauss_NfacesPad = maxThreads;
-
-  std::cout << " # threads per work group = " << maxThreads << std::endl;
   std::cout << " Np = " << Np << std::endl;
   std::cout << " Ngauss_Nfaces = " << Ngauss_Nfaces << std::endl;
   std::cout << " Ncub = " << Ncub << std::endl;
 
 #ifdef DEBUG_MIDG
-  std::cout << " Npp = " << Npp << std::endl;
   std::cout << " Ncub = " << Ncub << std::endl;
   std::cout << " Ngauss = " << Ngauss << std::endl;
 #endif
@@ -118,11 +87,6 @@ void midg2d::initNodes(int inN, int inC, int inG, int inP){
   /// resize data for Warp&Blend nodes
   r.resize(Np, 1);
   s.resize(Np, 1);
-
-  /// resize data for triangulation of plotting nodes
-  pr.resize(Npp, 1);
-  ps.resize(Npp, 1);
-  ptris.resize(Nptris,3);
 
   double *ref_r, *ref_s;
   switch(N){
@@ -203,44 +167,6 @@ void midg2d::initNodes(int inN, int inC, int inG, int inP){
     gw(i) = ref_gw[i-1];
   }
 
-
-  double *ref_pr, *ref_ps;
-  int *ref_ptris;
-  switch(P){
-  case  1: ref_pr = ref_pr_01; ref_ps = ref_ps_01; ref_ptris = ref_ptris_01; break;
-  case  2: ref_pr = ref_pr_02; ref_ps = ref_ps_02; ref_ptris = ref_ptris_02; break;
-  case  3: ref_pr = ref_pr_03; ref_ps = ref_ps_03; ref_ptris = ref_ptris_03; break;
-  case  4: ref_pr = ref_pr_04; ref_ps = ref_ps_04; ref_ptris = ref_ptris_04; break;
-  case  5: ref_pr = ref_pr_05; ref_ps = ref_ps_05; ref_ptris = ref_ptris_05; break;
-  case  6: ref_pr = ref_pr_06; ref_ps = ref_ps_06; ref_ptris = ref_ptris_06; break;
-  case  7: ref_pr = ref_pr_07; ref_ps = ref_ps_07; ref_ptris = ref_ptris_07; break;
-  case  8: ref_pr = ref_pr_08; ref_ps = ref_ps_08; ref_ptris = ref_ptris_08; break;
-  case  9: ref_pr = ref_pr_09; ref_ps = ref_ps_09; ref_ptris = ref_ptris_09; break;
-  case 10: ref_pr = ref_pr_10; ref_ps = ref_ps_10; ref_ptris = ref_ptris_10; break;
-  case 11: ref_pr = ref_pr_11; ref_ps = ref_ps_11; ref_ptris = ref_ptris_11; break;
-  case 12: ref_pr = ref_pr_12; ref_ps = ref_ps_12; ref_ptris = ref_ptris_12; break;
-  case 13: ref_pr = ref_pr_13; ref_ps = ref_ps_13; ref_ptris = ref_ptris_13; break;
-  case 14: ref_pr = ref_pr_14; ref_ps = ref_ps_14; ref_ptris = ref_ptris_14; break;
-  case 15: ref_pr = ref_pr_15; ref_ps = ref_ps_15; ref_ptris = ref_ptris_15; break;
-  case 16: ref_pr = ref_pr_16; ref_ps = ref_ps_16; ref_ptris = ref_ptris_16; break;
-  case 17: ref_pr = ref_pr_17; ref_ps = ref_ps_17; ref_ptris = ref_ptris_17; break;
-  case 18: ref_pr = ref_pr_18; ref_ps = ref_ps_18; ref_ptris = ref_ptris_18; break;
-  case 19: ref_pr = ref_pr_19; ref_ps = ref_ps_19; ref_ptris = ref_ptris_19; break;
-  }
-
-  /// element local coordinates of plottingnodes
-  for(int i=1;i<=Npp;++i){
-    pr(i) = ref_pr[i-1];
-    ps(i) = ref_ps[i-1];
-  }
-
-  int sk = 1;
-  for(int i=1;i<=Nptris;++i){
-    ptris(i,1) = ref_ptris[sk-1]; ++sk;
-    ptris(i,2) = ref_ptris[sk-1]; ++sk;
-    ptris(i,3) = ref_ptris[sk-1]; ++sk;
-  }
-
 #if 0
   std::cout << "r = " << r << std::endl;
   std::cout << "s = " << s << std::endl;
@@ -252,16 +178,11 @@ void midg2d::initNodes(int inN, int inC, int inG, int inP){
   std::cout << "gr = " << gr << std::endl;
   std::cout << "gs = " << gs << std::endl;
   std::cout << "gw = " << gw << std::endl;
-
-  std::cout << "pr = " << pr << std::endl;
-  std::cout << "ps = " << ps << std::endl;
-  std::cout << "ptris = " << ptris << std::endl;
 #endif
   /// test recurrence
   fmatrix  Vr,  Vs;
   fmatrix cV, cVr, cVs;
   fmatrix gV, gVr, gVs;
-  fmatrix pV, pVr, pVs;
   fmatrix vr, vs, vV, vVr, vVs;
 
   vr.resize(3,1);
@@ -272,11 +193,10 @@ void midg2d::initNodes(int inN, int inC, int inG, int inP){
     vs(i) = ref_r_01[i-1];
   }
 
-  basis(1, vr, vs, vV, vVr, vVs);
-  basis(N,  r,  s,  V,  Vr,  Vs);
-  basis(N, cr, cs, cV, cVr, cVs);
-  basis(N, gr, gs, gV, gVr, gVs);
-  basis(N, pr, ps, pV, pVr, pVs);
+  basis2D(1, vr, vs, vV, vVr, vVs);
+  basis2D(N,  r,  s,  V,  Vr,  Vs);
+  basis2D(N, cr, cs, cV, cVr, cVs);
+  basis2D(N, gr, gs, gV, gVr, gVs);
 
   fmatrix MMinv = V*(V.transpose());
 
@@ -294,7 +214,6 @@ void midg2d::initNodes(int inN, int inC, int inG, int inP){
 
   cinterp = cV*Vinv;
   ginterp = gV*Vinv;
-  pinterp = pV*Vinv;
   vinterp = vV*Vinv;
 
   cMinvIcTW = MMinv*(cinterp.transpose()*cW);
@@ -308,55 +227,6 @@ void midg2d::initNodes(int inN, int inC, int inG, int inP){
 
   cMinvDrTW = MMinv*(cDr.transpose()*cW);
   cMinvDsTW = MMinv*(cDs.transpose()*cW);
-
-  fmatrix Vall(Np+Ncub+Nfaces*Ngauss, Np);
-  int n,m;
-  for(m=1;m<=Np;++m){
-    sk = 1;
-    for(n=1;n<=Np;++n)
-      Vall(sk++,m) = V(n,m);
-
-    for(n=1;n<=Ncub;++n)
-      Vall(sk++,m) = cV(n,m);
-
-    for(n=1;n<=Ngauss*Nfaces;++n)
-      Vall(sk++,m) = gV(n,m);
-  }
-
-  checkinterp = Vall*Vinv; // good
-
-  // V1*coeffs = foo
-  // P1 = V1'*inv(V')*inv(V)
-  Vandermonde(1, r, s, V1);
-  Vandermonde(1, gr, gs, gV1);
-
-  fmatrix V0;
-  Vandermonde(0, r, s, V0);
-
-  fmatrix MM = Vinv.transpose()*Vinv;
-  P1 = V1.transpose()*MM;
-  P0 = V0.transpose()*MM;
-  //    P1 = MM*V1;
-
-  fmatrix r1, s1;
-
-  r1.resize(3,1);
-  s1.resize(3,1);
-
-  for(int i=1; i<=3; ++i){
-    r1(i) = ref_r_01[i-1];
-    s1(i) = ref_s_01[i-1];
-  }
-
-  // Vandermonde matrix for N=1
-  fmatrix V11;
-  Vandermonde(1, r1, s1, V11);
-  fmatrix V11inv = V11.inverse();
-  fmatrix MM1 = V11inv.transpose()*V11inv;
-  fmatrix P11 = V11.transpose()*MM1;
-  V1Nodal = V1*P11;
-  gV1Nodal = gV1*P11;
-  P1Nodal = V11*P1;
 }
 
 /**
@@ -438,10 +308,6 @@ void midg2d::geometry(){
     }
   }
 
-  // Set Plotting nodes
-  px = pinterp*x;
-  py = pinterp*y;
-
   std::cout << " x range: [" << x.minentry() << "," << x.maxentry() << "]" << std::endl;
   std::cout << " y range: [" << y.minentry() << "," << y.maxentry() << "]" << std::endl;
   std::cout << " sJ range: [" << sJ.minentry() << "," << sJ.maxentry() << "]" << std::endl;
@@ -449,71 +315,18 @@ void midg2d::geometry(){
 
 }
 
-static datafloat factorial(int n){
-
-  if(n==0)
-    return 1;
-  else
-    return n*factorial(n-1);
-
+datafloat Warpfactor(const int p, fmatrix &rout){
 }
 
-datafloat midg2d::JacobiP(datafloat xout, datafloat alpha, datafloat beta, int p){
-
-  // function [P] = JacobiP(x,alpha,beta,p)
-  // Purpose: Evaluate Jacobi Polynomial of type (alpha,beta) > -1
-  //          (alpha+beta <> -1) at points x for order N and
-  //          returns P[1:length(xp))]
-  // Note   : They are normalized to be orthonormal.
-
-  // Turn points into row if needed.
-  datafloat xp = xout;
-
-  fmatrix PL(p+1,1);
-
-  /// Initial values P_0(x) and P_1(x)
-  datafloat gamma0 = pow(2,(alpha+beta+1))/(alpha+beta+1)*factorial(alpha)*factorial(beta)/factorial(alpha+beta);
-  PL(1) = 1.0/sqrt(gamma0);
-  if (p==0) return PL(1);
-
-  datafloat gamma1 = (alpha+1)*(beta+1)/(alpha+beta+3)*gamma0;
-  PL(2) = ((alpha+beta+2)*xp/2 + (alpha-beta)/2)/sqrt(gamma1);
-  if (p==1) return PL(p+1);
-
-  /// Repeat value in recurrence.
-  datafloat aold = 2/(2+alpha+beta)*sqrt((alpha+1)*(beta+1)/(alpha+beta+3));
-
-  /// Forward recurrence using the symmetry of the recurrence.
-  for(int i=1;i<=p-1;++i){
-    datafloat h1 = 2*i+alpha+beta;
-    datafloat anew = 2/(h1+2)*sqrt( (i+1)*(i+1+alpha+beta)*(i+1+alpha)*(i+1+beta)/(h1+1)/(h1+3));
-    datafloat bnew = -(alpha*alpha-beta*beta)/h1/(h1+2);
-    PL(i+2) = 1./anew*( -aold*PL(i) + (xp-bnew)*PL(i+1));
-    aold =anew;
-  }
-
-  return PL(p+1);
+void Nodes2D(const int p, fmatrix &xout,
+	     fmatrix &yout){
 }
 
-datafloat midg2d::GradJacobiP(datafloat xout, datafloat alpha,
-			      datafloat beta,  int p){
+void xytors(const fmatrix &x, const fmatrix &y,
+	    fmatrix &r, fmatrix &s);
 
-  /// function [dP] = GradJacobiP(z, alpha, beta, N);
-  /// Purpose: Evaluate the derivative of the orthonormal Jacobi
-  ///	   polynomial of type (alpha,beta)>-1, at points x
-  ///          for order N and returns dP[1:length(xp))]
-
-  datafloat dP;
-  if(p == 0)
-    dP = 0.0;
-  else
-    dP = sqrt(p*(p+alpha+beta+1))*JacobiP(xout,alpha+1,beta+1, p-1);
-
-  return dP;
-}
-
-
-datafloat midg2d::SimplexP(datafloat aout, datafloat bout, int i, int j){
+datafloat Simplex2DP(datafloat aout, datafloat bout,
+		     int i, int j){
 
   /// SimplexP(a,b,i,j);
   /// Purpose : Evaluate 2D orthonormal polynomial
@@ -525,11 +338,13 @@ datafloat midg2d::SimplexP(datafloat aout, datafloat bout, int i, int j){
   return P;
 }
 
-void midg2d::GradSimplexP(datafloat aout, datafloat bout,
-			  int id, int jd,
-			  datafloat &dmodedr, datafloat &dmodeds){
 
-  /// function [dmodedr, dmodeds] = GradSimplexP(a,b,id,jd)
+void GradSimplex2DP(datafloat aout, datafloat bout,
+		    int id, int jd,
+		    datafloat &dmodedr,
+		    datafloat &dmodeds){
+
+  /// function [dmodedr, dmodeds] = GradSimplex2DP(a,b,id,jd)
   /// Purpose: Return the derivatives of the modal basis (id,jd)
   ///          on the  simplex at (a,b).
 
@@ -561,7 +376,8 @@ void midg2d::GradSimplexP(datafloat aout, datafloat bout,
   dmodeds = pow(2,id+0.5)*dmodeds;
 }
 
-void midg2d::rstoab(fmatrix &r, fmatrix &s, fmatrix &a, fmatrix &b){
+void rstoab(const fmatrix &r, const fmatrix &s,
+	    fmatrix &a, fmatrix &b){
 
   ///function [a,b] = rstoab(r,s)
   /// Purpose : Transfer from (r,s) -> (a,b) coordinates in triangle
@@ -579,7 +395,8 @@ void midg2d::rstoab(fmatrix &r, fmatrix &s, fmatrix &a, fmatrix &b){
   }
 }
 
-void midg2d::Vandermonde(int p, fmatrix &rout, fmatrix &sout, fmatrix &Vout){
+void Vandermonde2D(int p, fmatrix &rout, fmatrix &sout,
+		   fmatrix &Vout){
 
   /// function [Vout] = Voutandermonde(N,r,s,Vout)
   /// Purpose : Initialize the gradient of the modal basis (i,j)
@@ -596,7 +413,7 @@ void midg2d::Vandermonde(int p, fmatrix &rout, fmatrix &sout, fmatrix &Vout){
   for(int i=0;i<=p;++i){
     for(int j=0;j<=p-i;++j){
       for(int n=1;n<=rout.entryCount();++n){
-	Vout(n,sk) = SimplexP(aout(n),bout(n),i,j);
+	Vout(n,sk) = Simplex2DP(aout(n),bout(n),i,j);
       }
       sk = sk+1;
     }
@@ -604,9 +421,12 @@ void midg2d::Vandermonde(int p, fmatrix &rout, fmatrix &sout, fmatrix &Vout){
 }
 
 
-void midg2d::GradVandermonde(int p, fmatrix &rout, fmatrix &sout, fmatrix &Vrout, fmatrix &Vsout){
+void GradVandermonde2D(int p, fmatrix &rout,
+		       fmatrix &sout,
+		       fmatrix &Vrout,
+		       fmatrix &Vsout){
 
-  /// function [Vrout,Vsout] = GradVandermonde(p,r,s)
+  /// function [Vrout,Vsout] = GradVandermonde2D(p,r,s)
   /// Purpose : Initialize the gradient of the modal basis (i,j)
   ///	at (r,s) at order N
 
@@ -622,171 +442,25 @@ void midg2d::GradVandermonde(int p, fmatrix &rout, fmatrix &sout, fmatrix &Vrout
   for(int i=0;i<=p;++i){
     for(int j=0;j<=p-i;++j){
       for(int n=1;n<=rout.entryCount();++n){
-	GradSimplexP(aout(n),bout(n),i,j,Vrout(n,sk),Vsout(n,sk));
+	GradSimplex2DP(aout(n),bout(n),i,j,Vrout(n,sk),Vsout(n,sk));
       }
       sk = sk+1;
     }
   }
 }
 
-void midg2d::basis(int p, fmatrix &rout, fmatrix &sout, fmatrix &Vout, fmatrix &Vrout, fmatrix &Vsout){
+void basis2D(int p, fmatrix &rout, fmatrix &sout,
+	     fmatrix &Vout, fmatrix &Vrout,
+	     fmatrix &Vsout){
 
-  Vandermonde(p, rout, sout, Vout);
-  GradVandermonde(p, rout, sout, Vrout, Vsout);
-
+  Vandermonde2D(p, rout, sout, Vout);
+  GradVandermonde2D(p, rout, sout, Vrout, Vsout);
 }
 
+void Dmatrices2D(const int p, const fmatrix &r,
+		 const fmatrix &s,
+		 const fmatrix &V,
+		 fmatrix &Dr,
+		 fmatrix &Ds);
 
-datafloat midg2d::build_levels(fmatrix &all_dt, int maxNlevels){
-
-
-  datafloat dtmin = all_dt.minentry();
-  datafloat dtmax = all_dt.maxentry();
-
-  Nlevels = mymin(maxNlevels, ceil(log2(dtmax/dtmin)));
-
-  //    cout << "maxNlevels: " << maxNlevels << "Nlevels: " << Nlevels << endl;
-
-  levflag.resize(1,K);
-  levflag = 1;
-
-
-  for(int lev=Nlevels;lev>=1;--lev){
-    datafloat dtlev = dtmin*pow(2.,Nlevels-lev);
-    for(int k=1;k<=K;++k){
-      if(all_dt(k)>=dtlev) // check this
-	levflag(k) = lev;
-    }
-    //      cout << "lev: "  << lev << "dtlev: " << dtlev << endl;
-  }
-
-  /// move coarser neighbor elements to each level
-  for(int loop=1;loop<=5;++loop){
-#if 0
-    /// promote neighbors at coarse-fine interface
-    imatrix newlevflag = levflag;
-    for(int k=1;k<=K;++k){
-      for(int f=1;f<=Nfaces;++f){
-	if(EToE(k,f)){
-	  if((levflag(EToE(k,f))+1)<=levflag(k)){
-	    newlevflag(EToE(k,f)) = levflag(k);
-	  }
-	}
-      }
-    }
-    levflag = newlevflag;
-#endif
-    /// enforce the constraint that any two elements must be at most one level apart
-    int change = 1;
-    while(change){
-      change = 0;
-      for(int k=1;k<=K;++k){
-	for(int f=1;f<=Nfaces;++f){
-	  if(EToE(k,f)){
-	    if( (levflag(k)+1)<levflag(EToE(k,f))){ /// element k is too coarse
-	      levflag(k) = levflag(k)+1;
-	      change = change + 1;
-	    }
-	  }
-	}
-      }
-      //	cout << "change=" << change << endl;
-    }
-  }
-
-  int locmaxNlevels = levflag.maxentry();
-  int locminNlevels = levflag.minentry();
-  for(int k=1;k<=K;++k){
-    levflag(k) = levflag(k)-locminNlevels+1;
-  }
-  Nlevels = locmaxNlevels-locminNlevels+1;
-  std::cout << Nlevels << std::endl;
-
-  /// use this time step
-  datafloat coarsedt = dtmin*pow(2., Nlevels-1);
-
-  /// build level information
-
-  ks.resize(1,Nlevels);
-  kcoarse.resize(1,Nlevels);
-
-  imatrix kflag(1,K);
-
-  for(int lev=1;lev<=Nlevels;++lev){
-
-    int Klev = 0;
-
-    for(int k=1;k<=K;++k){
-      if(lev<=levflag(k)){
-	++Klev;
-	kflag(k) = lev;
-      }
-    }
-    ks(lev).resize(1,Klev);
-    Klev = 0;
-    for(int k=1;k<=K;++k){
-      if(lev<=levflag(k)){
-	ks(lev)(1,++Klev) = k;
-      }
-    }
-    std::cout << " Klevel[" << lev << "]=" << Klev << std::endl;
-  }
-  for(int lev=1;lev<=Nlevels;++lev){
-    imatrix kstate(1,K);
-    int     Ncoarse =0;
-    kstate = 0.0;
-
-    /// flag the coarser neighbors
-    for(int k1=1;k1<=K;++k1){
-      for(int f1=1;f1<=Nfaces;++f1){
-	int k2 = EToE(k1,f1);
-	int f2 = EToF(k1,f1);
-	if(kflag(k1)==lev && k2>0){
-	  if(kflag(k2)<levflag(k1)){
-	    if(kstate(k2)==0){
-	      kstate(k2) = 1;
-	      ++Ncoarse;
-	    }
-	  }
-	}
-      }
-    }
-    if(Ncoarse){
-      kcoarse(lev).resize(1,Ncoarse);
-      Ncoarse = 0;
-      for(int k1=1;k1<=K;++k1){
-	if(kstate(k1)==1)
-	  kcoarse(lev)(++Ncoarse) = k1;
-      }
-    }
-    //cout << "ks(" << lev << ")=" << ks(lev) << endl;
-    //      cout << " kcoarse(" << lev << ")=" << kcoarse(lev) << endl;
-  }
-
-  std::cout << " Nlevels = " << Nlevels << std::endl;
-
-  kids.resize(1,Nlevels);
-  for(int lev=1;lev<=Nlevels-1;++lev){
-    imatrix kstate(1,K);
-    kstate = 0.0;
-    for(int n=1;n<=ks(lev).ncolumns();++n){
-      kstate(ks(lev)(n))=1;
-    }
-    for(int n=1;n<=ks(lev+1).ncolumns();++n){
-      kstate(ks(lev+1)(n))=0;
-    }
-    int Nkids = 0;
-    for(int n=1;n<=ks(lev).ncolumns();++n)
-      if(kstate(ks(lev)(n))==1)
-	++Nkids;
-    kids(lev).resize(1,Nkids);
-    Nkids = 0;
-    for(int n=1;n<=ks(lev).ncolumns();++n)
-      if(kstate(ks(lev)(n))==1)
-	kids(lev)(++Nkids) = ks(lev)(n);
-    //      cout << "kids(" << lev << ")=" << kids(lev) << endl;
-  }
-  kids(Nlevels) = ks(Nlevels);
-  //    cout << "ks(1)=" << ks(1) << endl;
-  return coarsedt;
-}
+void Lift2D(fmatrix &Lift);
